@@ -94,6 +94,8 @@ def create_surface_code_logical_zero(distance: int) -> stim.Circuit:
     # Measure all the ancillas
     circuit.append("M", measure_qubits)
 
+    for i in range(len(measure_qubits)):
+        circuit.append("OBSERVABLE_INCLUDE", stim.target_rec(-i - 1), i + 1)
     # --- 4. Define the Logical Z Operator and Measure It ---
     # A logical Z is a string of Z operators on data qubits from top to bottom.
     # We measure it by measuring the data qubits in the X basis and checking parity.

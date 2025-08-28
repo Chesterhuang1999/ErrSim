@@ -1,11 +1,12 @@
 # Basic memory experiment
 import stim
 import numpy as np
-import sinter
+
 import pymatching
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from surface_code import surface_code_err_count_experiment
+
 def generate_coords(distance):
     data_coords = []
     xstab_coords = []
@@ -36,28 +37,6 @@ def generate_coords(distance):
                 zstab_coords.append(x + (2 * distance + 1) * (y // 2))
     zstab_coords.sort()
     return data_coords, xstab_coords, zstab_coords
-
-def extract_measure():
-    tmp_circuit = stim.Circuit.generated("surface_code:rotated_memory_z", distance = 3,
-                                 rounds = 3, 
-                                 after_clifford_depolarization= 0.003, 
-                                 before_round_data_depolarization= 0.001,
-                                 before_measure_flip_probability= 0.001
-                                 )
-    for op in tmp_circuit:
-        if op.name == "REPEAT":
-            measurez_body = op.body_copy()
-    tmp_circuit = stim.Circuit.generated("surface_code:rotated_memory_x", distance = 3,
-                                 rounds = 3, 
-                                 after_clifford_depolarization= 0.003, 
-                                 before_round_data_depolarization= 0.001,
-                                 before_measure_flip_probability= 0.001
-                                 )
-    for op in tmp_circuit:
-        if op.name == "REPEAT":
-            measurex_body = op.body_copy()
-    
-    return measurez_body, measurex_body
 
 def state_preparation(distance, p, syndrome_extraction_round):
     circ = stim.Circuit.generated("surface_code:rotated_memory_x", distance=distance,
@@ -91,7 +70,7 @@ def logical_H_observe(distance, p, syndrome_extraction_round, is_observe = True)
                                   before_measure_flip_probability= p1)
     data_qubits, x_stabs, z_stabs = generate_coords(distance)
     ### Re-define the probability for 1-qubit depolarization
-
+    
     for i, op in enumerate(circ):
         if op.name == "DEPOLARIZE1":
             op_new = stim.CircuitInstruction("DEPOLARIZE1", op.targets_copy(), [p1])
@@ -113,7 +92,7 @@ def logical_H_observe(distance, p, syndrome_extraction_round, is_observe = True)
     free_se = free_se.body_copy()
     syndrome_extraction = syndrome_extraction.body_copy()
   
-    errors = stim.CircuitInstruction("DEPOLARIZE1", data_qubits, [p])
+    errors = stim.CircuitInstruction("DEPOLARIZE1", data_qubits, [p1])
     Hs = stim.CircuitInstruction("H", errors.targets_copy())
    
     snippet = stim.Circuit()

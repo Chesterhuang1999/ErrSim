@@ -69,39 +69,45 @@ def surface_matrix_gen(n):
 
 
 # def generate_prob(H, w_max, p):
-def generate_prob(H, w_max):
+def generate_prob(H, w_max:int, bias) :
     """Generate the probability of each error pattern."""
     p = sympy.Symbol('p')
     k, n = H.shape
     H = sympy.Matrix(H)
     dist = defaultdict(float)
     for w in range(w_max + 1):
-        prob_weight = (p**w) * ( (1 - p)**(n-w)) 
-        # if prob_weight < 1e-10:
-        #     break
+        if bias == None:
+            prob_weight = (p**w) * ( (1 - p)**(n-w)) 
         err_loc_iter = combinations(range(n), w)
-        
         if w == 0:
-            # snd_vec = np.zeros(k)
+            
+            if bias != None:
+                prob_weight = 1
+                for b in bias:
+                    term = 1 - b * p
+                    prob_weight *= term
             snd_vec = sympy.zeros(k, 1)
             snd_tuple = tuple(int(x) for x in snd_vec)
             dist[snd_tuple] += prob_weight
             continue
 
         for err_loc in err_loc_iter:
+            if bias != None:
+                prob_weight = 1
+                loc_info = [1 if i in err_loc else 0 for i in range(n)]
+                for b, e in zip(bias, loc_info):
+                    if e == 1:
+                        term = b * p
+                    else:
+                        term = 1 - (b * p)
+                    prob_weight *= term
             cols = [H[:, i] for i in err_loc]
             snd_vec = sympy.zeros(k ,1)
             for col in cols: 
                 snd_vec += col
             snd_vec_mod2 = [elem % 2 for elem in snd_vec]
-            
-            # snd_vec = np.sum(H[:, err_loc], axis = 1)% 2
-        
-            # snd_tuple = tuple(snd_vec)
-
             snd_tuple = tuple(int(x) for x in snd_vec_mod2)
-            dist[snd_tuple] += prob_weight
-    
+            dist[snd_tuple] += prob_weight 
     return dist
 
 def enum_syn(H, w_max):
@@ -127,7 +133,8 @@ def surface_code_circuit_transform(rounds, distance, depo_error = 0.003, flip_er
     """Remove virtual measurements from the surface code circuit template. (guarded by virtual)"""
     """Add observables for each physical qubit (guarded by phys)"""
     circuit = stim.Circuit.generated("surface_code:rotated_memory_x", rounds = rounds, distance = distance, 
-                                        after_clifford_depolarization = depo_error, after_reset_flip_probability= flip_error,
+                                        after_clifford_depolarization = depo_error, 
+                                        after_reset_flip_probability= flip_error,
                                         before_measure_flip_probability= flip_error,
                                         )
     new_circuit = stim.Circuit()
@@ -167,12 +174,17 @@ def surface_code_circuit_transform(rounds, distance, depo_error = 0.003, flip_er
 def surface_code_err_count_experiment(circuit, N):
     """Count the number of physical errors in the surface code circuit."""
     sampler = circuit.compile_detector_sampler()
-
+    print("Circuit Instruction:")
+    print(circuit)
+    print("--------------------")
     shots = N
 
     detection_events, actual_observable_flips = sampler.sample(shots, separate_observables=True)
     error_model = circuit.detector_error_model()
-
+    
+    print("Error model:") 
+    print(error_model)
+    print("-------------------")
     matching = pymatching.Matching.from_detector_error_model(error_model)
 
     predicted_observable_flips = matching.decode_batch(detection_events)
@@ -184,6 +196,8 @@ def surface_code_err_count_experiment(circuit, N):
     predicted_logical_flips = predicted_observable_flips[:,0] #type: ignore
     predicted_physical_flips = predicted_observable_flips[:,1:] #type: ignore
 
+    # mask = actual_logical_flips != predicted_logical_flips
+    # predicted_physical_flips, actual_physical_flips = predicted_physical_flips[mask], actual_physical_flips[mask]
     # cond1_mask = (actual_logical_flips != predicted_logical_flips)
     # cond2_mask = np.all(actual_physical_flips == predicted_physical_flips, axis = 1)
     
@@ -255,25 +269,38 @@ def freq_fit_value(frequency_dict, err_poly, shots):
         err_poly_eval[key] = round(value * shots)
     return sorted(err_poly_eval.items(), key=lambda x: x[0])
 
+def err_free_prep(distance, rounds, shots):
+    circuit = stim.Circuit.generated("surface_code:rotated_memory_x", distance = distance, rounds = rounds)
+    print(circuit)
+
+    
+    ler = surface_code_memory_experiment(circuit, shots)
+    return ler
 if __name__ == "__main__": 
     distance = 3
     t = (distance - 1)//2
     shots = 100000
     HX, HZ = surface_matrix_gen(distance)
+    print(err_free_prep(distance, 2, shots))
+    exit(0)
     possible_syn = np.vstack(enum_syn(HX, t))
     circuit, new_circuit = surface_code_circuit_transform(1, distance, 0.003, 0.001, False, True)
     
-    # print(circuit)
-    err_poly = generate_prob(HX, 2)
-    # print(err_free_poly)
+    err_poly = generate_prob(HX, 2,bias = None)
+    print("Theoretical Polynomial:")
+    print(err_poly)
+    print("---------------------")
     err_free_exp = next(iter(err_poly.values()))
-    
     log_err_rate, stabs_err_free_rate, xor_physical_flips, frequency_dict = surface_code_err_count_experiment(new_circuit, shots)
-    # print(xor_physical_flips)
+    print("Simulated occurrences:")
     print(sorted(frequency_dict.items(), key = lambda x: x[0]))
+    print('---------------------')
     err_poly_eval = freq_fit_value(frequency_dict, err_poly, shots)
+    print("Theoretical Occurrences:")
     print(err_poly_eval)
+    total_occurrence = sum(value for key, value in err_poly_eval)
     exit(0)
+
     comparison_matrix = (xor_physical_flips[:, np.newaxis, :] == possible_syn)
     row_matches = np.all(comparison_matrix, axis=2)
     is_member_mask = np.any(row_matches, axis=1)
