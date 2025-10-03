@@ -151,13 +151,14 @@ def sim_MPS(circuit, max_bond):
     noise_model.add_all_qubit_quantum_error(error1q, ['rx', 'rz', 'h'])
     noise_model.add_all_qubit_quantum_error(error2q, ['cx'])
     
-    simulator = AerSimulator(method = 'matrix_product_state')
+    simulator = AerSimulator(method = 'matrix_product_state', 
+                             matrix_product_state_max_bond_dimension = max_bond)
     tcirc = transpile(circuit, simulator)
     tcirc.save_matrix_product_state() 
     ideal_res = simulator.run(tcirc, shots = 1).result()
     ideal_mps = ideal_res.data(0)['matrix_product_state']
-    simulator_noisy = AerSimulator(noise_model = noise_model, method = 'matrix_product_state')
-                                #  matrix_product_state_max_bond_dimension = max_bond)
+    simulator_noisy = AerSimulator(noise_model = noise_model, method = 'matrix_product_state',
+                                 matrix_product_state_max_bond_dimension = max_bond)
     
 
     tcirc_noisy = transpile(circuit, simulator_noisy)
@@ -182,19 +183,9 @@ def sim_MPS(circuit, max_bond):
     return D/N_SHOTS, end - start0
 if __name__ == "__main__":
 
-    # circuit = QuantumCircuit(4)
-    # circuit.h(0)
-    # for i in range(0, 3):
-    #     circuit.cx(i, i+1)
-    #     circuit.h(i)
-    # noise_model = noise.NoiseModel()
-    # error1q = noise.pauli_error([('X', 0.5), ('I', 0.5)])
-    # noise_model.add_all_qubit_quantum_error(error1q, ['rx', 'rz', 'h'])
-    # circuit.save_matrix_product_state()
-    # simulator = AerSimulator(method = 'matrix_product_state')
-    
     # candidate_circuit = ['QAOA_line_10','QAOA4reg_20', 'QAOARandom20', 'Isingmodel10', 'QAOA4reg_30', 'QAOA50', 'Isingmodel45']
     candidate_circuit = ['QAOA75', 'QAOA100']
+    
     for c in candidate_circuit:
         circuit = process_circuit(f"./qasm/{c}.qasm")
         
@@ -204,3 +195,4 @@ if __name__ == "__main__":
         print(f"Time for simulating circuit {c}: {sim_time}s")
         print(f"Simulated trace distance of circuit {c}: {distance}")
         print("======================================")
+
