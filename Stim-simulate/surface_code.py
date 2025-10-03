@@ -4,7 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import sympy
-from scipy.optimize import fsolve
+# from scipy.optimize import fsolve
+from beliefmatching import BeliefMatching
 import numpy as np
 from collections import defaultdict
 from itertools import combinations
@@ -239,11 +240,13 @@ def surface_code_memory_experiment(circuit, N):
     matching = pymatching.Matching.from_detector_error_model(error_model)
 
     predicted_observable_flips = matching.decode_batch(detection_events)
-
-    num_log_errors = np.sum(actual_observable_flips != predicted_observable_flips)
-
+    # xor_physical_flip = actual_observable_flips[:,1:] ^ predicted_observable_flips[:,1:]
+    xor_logical_flip = actual_observable_flips[:,0] ^ predicted_observable_flips[:,0]
+    num_log_errors = np.sum(xor_logical_flip)
+    # num_log_errors = np.sum(actual_observable_flips[:,0] != predicted_observable_flips[:,0])
+    
     logical_error_rate = num_log_errors / shots
-
+    
 
     return logical_error_rate
 
@@ -272,11 +275,48 @@ def freq_fit_value(frequency_dict, err_poly, shots):
 def err_free_prep(distance, rounds, shots):
     circuit = stim.Circuit.generated("surface_code:rotated_memory_x", distance = distance, rounds = rounds)
     print(circuit)
-
-    
     ler = surface_code_memory_experiment(circuit, shots)
     return ler
 if __name__ == "__main__": 
+
+    # circuit = stim.Circuit.from_file("Stim-simulate/lattice_surgery.stim")
+    
+    # for i, op in enumerate(circuit):
+    #     if op.name == "CX":
+    #         new_circ = circuit[:i + 1]
+    #         new_circ.append("DEPOLARIZE2", op.targets_copy(), [0.003])
+    #         new_circ += circuit[i+1:]
+    #         circuit = new_circ
+    # distance = 3
+    # for i in range(1, distance ** 2):
+    #     new_circ = circuit [ :-i - 2]
+    #     op = circuit[-i - 2]
+    #     new_circ.append("OBSERVABLE_INCLUDE", op.targets_copy(), i + 2)
+    #     new_circ += circuit [- i - 1:]
+    #     circuit = new_circ
+    
+    circuit = stim.Circuit.generated("surface_code:rotated_memory_x", distance = 3, rounds = 2,
+                                        after_clifford_depolarization = 0.003,
+                                        after_reset_flip_probability= 0.0001,
+                                        before_measure_flip_probability= 0.0001)
+    shots = 100000
+    # print(circuit)
+    for d in range(3, 12, 2):
+        ler = []
+        for i in range(d):
+            circuit = stim.Circuit.generated("surface_code:rotated_memory_x", distance = d, rounds = i + 1,
+                                            after_clifford_depolarization = 0.003,
+                                            # after_reset_flip_probability= 0.0001,
+                                            before_measure_flip_probability= 0.0001)
+            
+            ler.append(surface_code_memory_experiment(circuit, shots))
+        
+        print(f"LER vs Rounds  when d = {d}:")
+        print(ler)
+
+    exit(0)
+
+
     distance = 3
     t = (distance - 1)//2
     shots = 100000

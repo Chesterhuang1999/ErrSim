@@ -1,7 +1,7 @@
 import stim
 import pymatching 
 import numpy as np
-from error_poly import postprocessing
+from logcircuit import postprocessing
 
 def create_rep_circuit(distance: int, rounds: int, error_prob_set: np.ndarray) -> stim.Circuit:
 
@@ -50,7 +50,7 @@ def create_rep_circuit(distance: int, rounds: int, error_prob_set: np.ndarray) -
     ### Final logical measurement
 
     for i in range(distance):
-        circuit.append("M", d[i])
+        circuit.append("M", d[i]) #type: ignore
     for i in range(distance - 1):
         circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- i - 1), stim.target_rec(- i - 2), stim.target_rec(- i - distance - 1)], i)
     circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-i - 1) for i in range(distance)], distance - 1) # type: ignore
@@ -83,8 +83,8 @@ def find_max_benign_errors(error_info):
     return ind_error
 if __name__ == "__main__":  
     # Set parameters
-    distance = 7
-    rounds = 7
+    distance = 3
+    rounds = 1
     error_prob_set = np.array([0.0003, 0.001])
     NUM_SHOTS = 1000000
    
@@ -97,6 +97,9 @@ if __name__ == "__main__":
                                      after_clifford_depolarization=0.003,
                                      before_measure_flip_probability=0.001, 
                                      after_reset_flip_probability=0.001)
+    
+    print(circuit)
+    exit(0)
     # reset = circuit[0]
     # err = circuit[1]
     # targets = [stim.GateTarget(1), stim.GateTarget(3)]
@@ -113,8 +116,8 @@ if __name__ == "__main__":
         circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-i - 1), stim.target_rec(-i - 2)], i + 1)
     # circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-1), stim.target_rec(-2)], 2)
     error_model = circuit.detector_error_model(decompose_errors=True)
-    # print(f"Circuit:{circuit}")
-    # print("----------------------")
+    print(f"Circuit:{circuit}")
+    print("----------------------")
     print(f"Error model:{error_model}")
     print("----------------------")
     # print(f"Error targets:")
@@ -150,7 +153,7 @@ if __name__ == "__main__":
     predicted_logical_flips = predicted_observable_flips[:, 0] # type: ignore
     predicted_stabilizer_flips = predicted_observable_flips[:, 1:] # type: ignore
     xor_stabilizer_flips = actual_stabilizer_flips ^ predicted_stabilizer_flips
-    print()
+    
     print(np.sum(np.any(xor_stabilizer_flips, axis = 1))/NUM_SHOTS)
     # 6. Analyze the results
     # A logical error occurs if the decoder's prediction doesn't match the actual outcome.

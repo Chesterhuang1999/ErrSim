@@ -7,35 +7,46 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from surface_code import surface_code_err_count_experiment
 
-def generate_coords(distance):
-    data_coords = []
-    xstab_coords = []
-    zstab_coords = []
-    for j in range(distance):
+def generate_coords(distance, k):
+    # data_coords = []
+    # xstab_coords = []
+    # zstab_coords = []
+    data_coords = {}
+    xstab_coords = {}
+    zstab_coords = {}
+    for j in range(k * distance):
         for i in range(distance):
             x, y = 2 * i + 1, 2 * j + 1
-            data_coords.append(x + (2 * distance + 1 ) * (y//2))
+            data_coords[tuple((x, y))] = x + (2 * distance + 1) * (y // 2)
+            # data_coords.append(x + (2 * distance + 1 ) * (y//2))
     mid = distance // 2 + 1
-    for j in range(mid):
-        for i in range(distance - 1):
-            x = 2 * i + 2
-            if i % 2 == 0: # start with 0 in y
-                y = 4 * j
-                xstab_coords.append(x + (2 * distance + 1) * (y // 2))
-            else: # start with 2 in y
-                y = 4 * j + 2
-                xstab_coords.append(x + (2 * distance + 1) * (y // 2))
-    xstab_coords.sort()
-    for j in range(distance - 1):
-        for i in range(mid):
-            y = 2 * j + 2
-            if j % 2 == 0: # start with 0 in x
-                x = 4 * i + 2
-                zstab_coords.append(x + (2 * distance + 1) * (y // 2))
-            else:
-                x = 4 * i
-                zstab_coords.append(x + (2 * distance + 1) * (y // 2))
-    zstab_coords.sort()
+    for l in range(k):
+        offset = l * 2 * distance
+        for j in range(mid):
+            for i in range(distance - 1):
+                x = 2 * i + 2
+                if i % 2 == 0: # start with 0 in y
+                    y = 4 * j + offset
+                    xstab_coords[tuple((x, y))] = x + (2 * distance + 1) * (y // 2)
+                    
+                else: # start with 2 in y
+                    y = 4 * j + 2 + offset
+                    xstab_coords[tuple((x, y))] = x + (2 * distance + 1) * (y // 2)
+                
+        xstab_coords = dict(sorted(xstab_coords.items(), key=lambda item: item[1]))
+        for j in range(distance - 1):
+            for i in range(mid):
+                y = 2 * j + 2 + offset
+                if j % 2 == 0: # start with 0 in x
+                    x = 4 * i + 2 
+                    zstab_coords[tuple((x, y))] = x + (2 * distance + 1) * (y // 2)
+                    # zstab_coords.append(x + (2 * distance + 1) * (y // 2))
+                else:
+                    x = 4 * i 
+                    zstab_coords[tuple((x, y))] = x + (2 * distance + 1) * (y // 2)
+                    # zstab_coords.append(x + (2 * distance + 1) * (y // 2))
+        # zstab_coords.sort()
+        zstab_coords = dict(sorted(zstab_coords.items(), key=lambda item: item[1]))
     return data_coords, xstab_coords, zstab_coords
 
 def state_preparation(distance, p, syndrome_extraction_round):
@@ -177,9 +188,9 @@ if __name__ == "__main__":
     #         ler_ft[distance // 2 - 1, i] = memory_experiment_run(circuit, 100000)
     sumofler = 0
 
-    circ = logical_H_observe(3, (0.0003, 0.006), 1, False)
+    # circ = logical_H_observe(3, (0.0003, 0.006), 1, False)
 
-    print(circ)
+    print(generate_coords(3,2))
     exit(0)
     for i in range(50):
         ler_p1, ler_base = memory_experiment_run(circ, 100000)
